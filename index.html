@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#101114" />
+  <title>Orbit // Personal Command Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>try { if(localStorage.getItem('orbit-theme')==='dark')document.documentElement.dataset.theme='dark'; } catch {}</script><link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark"><span></span><span></span><span></span></div><span>ORBIT</span></div>
+      <div class="sidebar-section-label">Workspace</div>
+      <nav class="primary-nav" aria-label="Workspace navigation">
+        <button class="nav-item active" data-view="today"><i data-lucide="sun"></i><span>Planning board</span><b id="todayNavCount">5</b></button>
+        <button class="nav-item" data-view="upcoming"><i data-lucide="calendar-days"></i><span>Upcoming</span><b>12</b></button>
+        <button class="nav-item" data-view="inbox"><i data-lucide="inbox"></i><span>Inbox</span><b>3</b></button>
+      </nav>
+      <div class="sidebar-section-label">Collections</div>
+      <nav class="primary-nav">
+        <button class="nav-item collection-nav" data-collection="Personal" aria-label="Personal collection"><span class="project-dot collection-personal"></span><span>Personal</span></button>
+        <button class="nav-item collection-nav" data-collection="Office" aria-label="Office collection"><span class="project-dot collection-office"></span><span>Office</span></button>
+        <button class="nav-item collection-nav" data-collection="Family" aria-label="Family collection"><span class="project-dot collection-family"></span><span>Family</span></button>
+        <button class="add-project"><i data-lucide="plus"></i> New collection</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="focus-card"><div class="focus-icon"><i data-lucide="sparkles"></i></div><div><strong>Focus mode</strong><span>Protect your attention</span></div><button class="toggle" aria-label="Toggle focus mode"><span></span></button></div>
+        <button class="nav-item muted"><i data-lucide="settings-2"></i><span>Preferences</span></button>
+        <div class="profile"><div class="avatar">AR</div><div><strong>Alex Rivera</strong><span>Personal space</span></div><i data-lucide="more-horizontal"></i></div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar"><div class="breadcrumbs"><span>Workspace</span><i data-lucide="chevron-right"></i><strong>Today</strong></div><form class="planner-ask" id="plannerAskForm"><label class="sr-only" for="plannerQuestion">Ask about your saved tasks</label><input id="plannerQuestion" type="text" autocomplete="off" maxlength="300" placeholder="Ask Orbit… কাল ৯টায় কী কাজ আছে?"><button id="plannerAskButton" type="submit">Ask</button></form><div class="top-actions"><button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false" aria-label="Switch to dark background">Dark</button><button class="icon-btn" id="searchButton" aria-label="Search"><i data-lucide="search"></i></button><button class="icon-btn notification-btn" id="notificationButton" aria-label="Notifications"><i data-lucide="bell"></i><span></span></button><button class="avatar small">AR</button></div></header>
+      <section class="planner-chat" id="plannerChat" aria-label="Planner answers" hidden><div class="chat-heading"><strong>Ask Orbit</strong><span>Your saved tasks</span><button id="closePlannerChat" type="button" aria-label="Close answers">Close</button></div><div id="plannerMessages" class="planner-messages" role="log" aria-live="polite"></div></section><div class="content-wrap">
+        
+        <section class="stats-grid" aria-label="Daily progress"><div class="stat-card accent-mint"><span class="stat-label">Daily progress</span><div class="stat-value"><strong id="progressPercent">64%</strong><span>on track</span></div><div class="progress-track"><div id="progressBar" style="width:64%"></div></div></div><div class="stat-card"><span class="stat-label">Open tasks</span><div class="stat-value"><strong id="openCount">08</strong><span>across 3 areas</span></div><i class="stat-watermark" data-lucide="layers-3"></i></div><div class="stat-card"><span class="stat-label">Deep work</span><div class="stat-value"><strong>02<span class="unit">h</span> 40<span class="unit">m</span></strong><span>planned today</span></div><i class="stat-watermark" data-lucide="timer"></i></div></section>
+        <div class="workspace-toolbar"><div class="workspace-title"><h1>My planning board</h1><span id="dateLabel"></span></div><button class="primary-btn" id="newTaskButton"><i data-lucide="plus"></i> New task <kbd>N</kbd></button><div class="sound-toolbar"><span id="soundStatus">Enable sound for reminders 5 min before</span><button id="enableSound" type="button">Enable sound</button><button id="testSound" type="button">Test sound</button><button id="stopSound" type="button" hidden>Stop sound</button></div><div class="selection-toolbar"><span id="selectedCount">0 selected</span><button id="completeSelected" type="button" disabled>Complete selected</button><button id="reopenSelected" type="button" disabled>Reopen selected</button><button id="clearSelection" type="button" disabled>Clear</button></div></div><section class="agenda-section"><div class="board-context" aria-live="polite"><span id="viewTitle">My planning board</span><span id="viewSubtitle">Select tasks to complete · Click a card for details</span></div><div class="task-list" id="taskList"></div></section>
+        <section class="bottom-grid"><div class="quote-panel"><div class="quote-mark">“</div><p>What you do every day matters more than what you do once in a while.</p><span>— Gretchen Rubin</span></div><div class="up-next"><div class="mini-heading"><span>Coming up</span><button id="seeAllButton">See all <i data-lucide="arrow-up-right"></i></button></div><div class="up-next-item"><span class="time-dot cyan"></span><div><strong>Team sync</strong><span>Tomorrow · 09:30</span></div><i data-lucide="video"></i></div><div class="up-next-item"><span class="time-dot orange"></span><div><strong>Gym session</strong><span>Tomorrow · 18:00</span></div><i data-lucide="dumbbell"></i></div></div></section>
+      </div>
+    </main>
+  </div>
+
+  <div class="task-details-page" id="modalBackdrop" hidden><section class="task-modal" aria-labelledby="modalTitle"><div class="modal-header"><div><span class="eyebrow">TASK WORKSPACE</span><h2 id="modalTitle">New task</h2></div><button class="details-back close-modal" type="button">Back to board</button></div><form id="taskForm"><div class="detail-fields"><label>Task name<input id="taskName" type="text" placeholder="What needs your attention?" required autocomplete="off"></label><div class="form-row"><label>When<select id="taskDate"><option value="today">Today</option><option value="tomorrow">Tomorrow</option><option value="week">This week</option><option value="month">This month</option><option value="waiting">Waiting list</option></select></label><label>Time<input id="taskTime" type="time" value="09:00"></label></div><label>Exact date<input id="taskExactDate" type="date" required></label><div class="form-row"><label>Collection<select id="taskArea"><option>Personal</option><option>Office</option><option>Family</option></select></label><label>Priority<select id="taskPriority"><option value="normal">Normal</option><option value="high">High importance</option></select></label></div><label class="reminder-check"><input id="taskReminder" type="checkbox" checked><span class="fake-check"><i data-lucide="check"></i></span><span><strong>Remind me 5 minutes before</strong><small>Sound + optional browser notification. Keep this tab open.</small></span></label></div><div class="detail-work"><label>Add a new note<textarea id="taskNotes" rows="4" placeholder="Write your next update. Previous notes stay in the history above."></textarea></label><button id="saveNoteButton" class="save-note-button" type="button">Save note</button><section class="task-files"><div class="files-heading"><h3>Files for this note</h3><label class="upload-label">Add files<input type="file" id="attachmentInput" multiple></label></div><p class="files-hint">Choose files, then Save note. They will appear next to that note in history. Up to 25 MB per file; stored in this browser.</p><div id="pendingAttachmentList"></div><div id="attachmentList"></div><p id="fileError" role="alert"></p></section></div><section class="notes-history"><div class="notes-heading"><h3>Notes history</h3><span id="noteCount">0 saved</span></div><ol id="noteHistory" aria-live="polite"><li class="notes-empty">Saved notes will appear here in order.</li></ol></section><div class="detail-footer"><span id="taskDetailsStatus" class="details-status">New task</span><button id="saveTaskButton" class="primary-btn full" type="submit"><i data-lucide="sparkles"></i> Add to my day</button></div></form></section></div>
+  <div class="toast" id="toast"><i data-lucide="bell-ring"></i><span>Reminder settings saved</span></div>
+  <div class="reminder-alert" id="reminderAlert" role="alert" hidden><strong>Task reminder</strong><span id="reminderMessage"></span><button id="dismissReminder" type="button">Stop &amp; dismiss</button></div><script src="app.js"></script><script src="planner-ask.js"></script>
+</body>
+</html>

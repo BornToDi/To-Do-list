@@ -1,0 +1,1 @@
+export PATH="/c/Windows/System32:$PATH"
