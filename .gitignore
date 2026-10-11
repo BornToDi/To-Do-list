@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+*.log
+.orbit-host.json
+.voice-venv/
+.voice-model/
+.voice-model-bn/
+.voice-model-medium/
+.voice-cache/
+__pycache__/
+.voice-tests/

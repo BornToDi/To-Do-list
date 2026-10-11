@@ -1,15 +1,27 @@
-const taskStore = [
-  { id: 1, title: 'Finalize Q4 creative direction', area: 'Studio work', time: '09:30', priority: 'high', meta: 'Studio work', reminder: true, done: false, day: 'today' },
-  { id: 2, title: 'Morning pages + 20 min meditation', area: 'Personal', time: '11:00', priority: 'normal', meta: 'Personal', reminder: false, done: true, day: 'today' },
-  { id: 3, title: 'Send project brief to Maya', area: 'Studio work', time: '13:30', priority: 'high', meta: 'Studio work', reminder: true, done: false, day: 'today' },
-  { id: 4, title: 'Take a proper lunch break', area: 'Health & mind', time: '14:00', priority: 'normal', meta: 'Health & mind', reminder: true, done: false, day: 'today' },
-  { id: 5, title: 'Read 30 pages of The Creative Act', area: 'Personal', time: '21:00', priority: 'normal', meta: 'Personal', reminder: true, done: false, day: 'today' },
-  { id: 6, title: 'Team sync and weekly alignment', area: 'Studio work', time: '09:30', priority: 'high', meta: 'Studio work', reminder: true, done: false, day: 'tomorrow' },
-  { id: 7, title: 'Book dentist appointment', area: 'Health & mind', time: '11:30', priority: 'normal', meta: 'Health & mind', reminder: false, done: false, day: 'tomorrow' },
-  { id: 8, title: 'Plan next week priorities', area: 'Personal', time: '16:00', priority: 'normal', meta: 'Personal', reminder: true, done: false, day: 'week' },
-  { id: 9, title: 'Review monthly finances', area: 'Personal', time: '10:00', priority: 'high', meta: 'Personal', reminder: true, done: false, day: 'month' }
+const demoGroups = [
+  ['today', ['Review client feedback', 'Prepare team standup notes', 'Update project timeline', 'Send design proposal', 'Check website on mobile', 'Organize project files', 'Review open invoices', 'Reply to client emails', 'Walk for 30 minutes', 'Read a book chapter', 'Plan healthy meals', 'Practice breathing exercises', 'Track daily expenses', 'Water indoor plants', 'Learn new keyboard shortcuts', 'Back up personal photos', 'Call parents', 'Buy weekly groceries', 'Help with homework', 'Plan family dinner', 'Organize kitchen shelves', 'Schedule family check-in']],
+  ['tomorrow', ['Present homepage concepts', 'Review sprint backlog', 'Draft newsletter copy', 'Test checkout flow', 'Meet the marketing team', 'Update brand guidelines', 'Prepare meeting agenda', 'Review analytics dashboard', 'Book dentist appointment', 'Try a new workout', 'Write morning journal', 'Practice a language lesson', 'Sort personal documents', 'Prepare lunch for work', 'Review reading list', 'Clean desk workspace', 'Visit grandparents', 'Pick up school supplies', 'Book family outing tickets', 'Prepare birthday gift', 'Check household supplies', 'Arrange weekend transport']],
+  ['week', ['Finalize landing page design', 'Audit website accessibility', 'Create social media assets', 'Document API requirements', 'Review customer interviews', 'Plan next sprint priorities', 'Update onboarding checklist', 'Send weekly progress report', 'Review weekly budget', 'Finish online course module', 'Plan cycling route', 'Organize wardrobe', 'Update personal portfolio', 'Set weekly exercise goals', 'Schedule health checkup', 'Declutter phone storage', 'Plan weekend picnic', 'Review school calendar', 'Cook a family recipe', 'Organize living room', 'Visit a local museum', 'Coordinate family appointments']],
+  ['month', ['Prepare monthly performance report', 'Review project milestones', 'Plan product launch campaign', 'Update competitor research', 'Renew software subscriptions', 'Review team capacity', 'Archive completed projects', 'Prepare client strategy session', 'Review savings goals', 'Plan next month habits', 'Complete a book', 'Schedule annual checkup', 'Update resume', 'Review subscription expenses', 'Organize tax documents', 'Plan a short trip', 'Plan family celebration', 'Review household budget', 'Service the family car', 'Organize family photo album', 'Plan holiday activities', 'Check home maintenance needs']],
+  ['waiting', ['Explore dashboard redesign', 'Research new design tools', 'Draft workshop outline', 'Collect case study materials', 'Investigate automation ideas', 'Plan customer survey', 'Outline internal knowledge base', 'Research partnership opportunities', 'Explore photography course', 'Create a personal website', 'Research a new hobby', 'Build a reading wishlist', 'Plan a home fitness corner', 'Compare travel destinations', 'Organize old notebooks', 'Learn basic gardening', 'Plan family reunion', 'Research kids activity clubs', 'Create emergency contact list', 'Plan a garden project', 'Explore weekend volunteering', 'Collect family recipe ideas']]
 ];
+const demoTasks = demoGroups.flatMap(([day, titles], group) => titles.map((title, index) => {
+  const area = index < 8 ? 'Office' : index < 16 ? 'Personal' : 'Family';
+  return { id: 10001 + group * 22 + index, title, area, meta: area, day,
+    time: `${String(8 + Math.floor(index / 2)).padStart(2, '0')}:${index % 2 ? '30' : '00'}`,
+    priority: index % 4 === 0 ? 'high' : 'normal', reminder: false,
+    done: day === 'today' && index % 6 === 0, date: scheduledDate(day),
+    notes: `Demo task for ${area.toLowerCase()}. Add your notes and next steps here.` };
+}));
+const taskStore = [...demoTasks];
 try { const saved = JSON.parse(localStorage.getItem('orbit-local-tasks')); if (Array.isArray(saved) && saved.every(t => t && typeof t.title === 'string' && typeof t.id === 'number' && typeof t.day === 'string')) taskStore.splice(0, taskStore.length, ...saved); } catch {}
+try {
+  if (localStorage.getItem('orbit-demo-110-v1') !== 'loaded') {
+    for (const task of demoTasks) if (!taskStore.some(saved => saved.id === task.id)) taskStore.push(task);
+    localStorage.setItem('orbit-local-tasks', JSON.stringify(taskStore));
+    localStorage.setItem('orbit-demo-110-v1', 'loaded');
+  }
+} catch {}
 for(const task of taskStore){if(task.area==='Studio work')task.area='Office';if(task.area==='Health & mind')task.area='Personal';task.meta=task.area;}
 let activeView = 'today';
 let activeCollection='';

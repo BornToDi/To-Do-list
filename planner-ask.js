@@ -1,71 +1,74 @@
-// Local task lookup: answers come from saved task records, not generated guesses.
-function normalizePlannerQuestion(value){
- return value.toLowerCase().replace(/[০-৯]/g,c=>'০১২৩৪৫৬৭৮৯'.indexOf(c)).replace(/\s+/g,' ').trim();
+// One chat panel for questions, answers and voice input.
+const orbitConversation=[];
+const chat=document.querySelector('#plannerChat'),messages=document.querySelector('#plannerMessages'),form=document.querySelector('#plannerAskForm'),input=document.querySelector('#plannerQuestion'),send=document.querySelector('#plannerAskButton');
+const launcher=document.createElement('button');launcher.type='button';launcher.className='orbit-chat-launcher';launcher.textContent='✦ Ask Orbit';launcher.setAttribute('aria-controls','plannerChat');launcher.setAttribute('aria-expanded','false');form.replaceWith(launcher);
+chat.setAttribute('aria-label','Ask Orbit chat');
+chat.querySelector('.chat-heading span').textContent='Your planning assistant';
+const empty=document.createElement('div');empty.className='orbit-chat-empty';empty.innerHTML='<div class="orbit-chat-symbol">✦</div><h3>How can I help?</h3><p>Ask about your tasks, plan your day, or speak your question.</p><div class="orbit-chat-suggestions"><button type="button">আজ কী কাজ বাকি?</button><button type="button">Plan my day</button></div>';messages.appendChild(empty);
+const connection=document.createElement('div');connection.className='orbit-chat-connection';
+const connectionStatus=document.createElement('span'),connect=document.createElement('button');connect.type='button';connect.textContent='Continue with ChatGPT';connection.append(connectionStatus,connect);chat.appendChild(connection);
+const composer=document.createElement('div');composer.className='orbit-chat-composer';chat.appendChild(composer);composer.appendChild(form);
+input.placeholder='Message Orbit…';input.maxLength=4000;input.setAttribute('aria-label','Message Orbit');send.textContent='↑';send.setAttribute('aria-label','Send message');send.title='Send message';
+const mic=document.createElement('button');mic.type='button';mic.className='orbit-chat-mic';mic.setAttribute('aria-label','Speak your message');mic.title='Speak your message';
+const micIcon='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg>';mic.innerHTML=micIcon;mic.setAttribute('aria-pressed','false');send.before(mic);
+const status=document.createElement('div');status.className='orbit-chat-status';status.setAttribute('role','status');status.setAttribute('aria-live','polite');composer.appendChild(status);
+const language=document.createElement('select');language.className='orbit-chat-language';language.setAttribute('aria-label','Voice language');for(const[value,label]of [['bn-BD','বাংলা'],['en-US','English']]){const option=document.createElement('option');option.value=value;option.textContent=label;language.appendChild(option);}
+language.value='bn-BD';try{const saved=localStorage.getItem('orbit-voice-language');if(['bn-BD','en-US'].includes(saved))language.value=saved;}catch{}
+language.addEventListener('change',()=>{try{localStorage.setItem('orbit-voice-language',language.value);}catch{}});
+const foot=document.createElement('div');foot.className='orbit-chat-foot';foot.appendChild(language);const tip=document.createElement('span');tip.textContent='Enter to send · Mic to speak';foot.appendChild(tip);composer.appendChild(foot);
+let connected=false,busy=false,voice=null;
+function openChat(){chat.hidden=false;launcher.setAttribute('aria-expanded','true');input.focus();messages.scrollTop=messages.scrollHeight;}
+function closeChat(){cancelVoice();chat.hidden=true;launcher.setAttribute('aria-expanded','false');launcher.focus();}
+launcher.addEventListener('click',()=>chat.hidden?openChat():closeChat());document.querySelector('#closePlannerChat').addEventListener('click',closeChat);
+document.querySelector('#searchButton').addEventListener('click',openChat);
+empty.querySelectorAll('button').forEach(button=>button.addEventListener('click',()=>{input.value=button.textContent;input.focus();}));
+function syncControls(){send.disabled=busy||Boolean(voice);mic.disabled=busy;language.disabled=Boolean(voice);input.readOnly=busy||Boolean(voice);mic.innerHTML=voice?'■':micIcon;mic.classList.toggle('listening',Boolean(voice));mic.setAttribute('aria-pressed',String(Boolean(voice)));mic.setAttribute('aria-label',voice?'Stop listening':'Speak your message');}
+async function refreshConnection(){try{const r=await fetch('/api/chatgpt/status');if(!r.ok)throw Error();const data=await r.json();connected=data.connected;connectionStatus.textContent=connected?'● ChatGPT connected':'Connect ChatGPT to start';connect.textContent=connected?'Disconnect':'Continue with ChatGPT';connection.classList.toggle('connected',connected);}catch{connectionStatus.textContent='Open Orbit at 127.0.0.1:3000';}}
+connect.addEventListener('click',async()=>{connect.disabled=true;try{const r=await fetch(connected?'/auth/logout':'/auth/start',{method:'POST'});const data=await r.json();if(!r.ok)throw Error(data.error);if(connected){orbitConversation.length=0;messages.replaceChildren(empty);await refreshConnection();}else location.assign(data.url);}catch(e){status.textContent=e.message||'Could not connect. Try again.';}finally{connect.disabled=false;}});
+if(location.protocol!=='file:')void refreshConnection();
+const signIn=new URLSearchParams(location.search).get('chatgpt');if(signIn){openChat();if(signIn==='failed')status.textContent='Sign-in was not completed. Try Continue with ChatGPT again.';history.replaceState(null,'',location.pathname+location.hash);}
+function bubble(text,className){const el=document.createElement('div');el.className=className;el.textContent=text;messages.appendChild(el);messages.scrollTop=messages.scrollHeight;return el;}
+async function answerPlannerQuestion(question){
+ empty.remove();bubble(question,'chat-question');const reply=bubble('Thinking…','chat-answer pending');
+ try{if(location.protocol==='file:')throw Error('Open http://127.0.0.1:3000 to use chat.');const r=await fetch('/api/orbit',{method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(65000),body:JSON.stringify({question,history:orbitConversation.slice(-16),localDate:localDateKey(new Date()),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,tasks:taskStore.map(t=>({...t,notes:getNoteHistory(t).map(n=>n.text).join('\n')}))})});const data=await r.json();if(!r.ok)throw Error(data.error||'Could not answer. Try again.');if(!data.answer?.trim())throw Error('No answer received. Try again.');reply.textContent=data.answer;orbitConversation.push({role:'user',content:question},{role:'assistant',content:data.answer});if(orbitConversation.length>16)orbitConversation.splice(0,orbitConversation.length-16);
+ }catch(e){reply.textContent=e.name==='TimeoutError'?'The answer took too long. Please try again.':e.message;reply.classList.add('error');input.value=question;}finally{reply.classList.remove('pending');messages.scrollTop=messages.scrollHeight;}
 }
-function parsePlannerQuestion(value,current=new Date()){
- const q=normalizePlannerQuestion(value),start=new Date(current);start.setHours(12,0,0,0);
- let from='',to='',dateLabel='সব saved dates';
- const tomorrow=/tomorrow|আগামীকাল|কালকে|(?:^|\s)কাল(?=\s|\d|$)|\b(kal|kaal|agamikal)\b/.test(q),today=/today|আজ|\b(aj|aaj|ajke)\b/.test(q);
- const iso=q.match(/\b(\d{4}-\d{2}-\d{2})\b/);
- if(iso){const d=new Date(iso[1]+'T12:00');if(!Number.isFinite(d.getTime())||localDateKey(d)!==iso[1])return {error:'সঠিক date দিন, যেমন 2026-10-06।'};from=to=iso[1];dateLabel=from;}
- else if(/day after tomorrow|পরশু|\b(porshu|porshu)\b/.test(q)){start.setDate(start.getDate()+2);from=to=localDateKey(start);dateLabel='পরশু';}
- else if(tomorrow){start.setDate(start.getDate()+1);from=to=localDateKey(start);dateLabel='কাল';}
- else if(today){from=to=localDateKey(start);dateLabel='আজ';}
- else if(/this week|এই সপ্তাহ|\b(week|soptaho)\b/.test(q)){from=localDateKey(start);start.setDate(start.getDate()+6);to=localDateKey(start);dateLabel='আগামী 7 দিন';}
- else if(/this month|এই মাস|\b(month|mash)\b/.test(q)){from=localDateKey(new Date(start.getFullYear(),start.getMonth(),1));to=localDateKey(new Date(start.getFullYear(),start.getMonth()+1,0));dateLabel='এই মাস';}
- const clock=q.replace(/\d{4}-\d{2}-\d{2}/g,'');
- const time=clock.match(/(?:\bat\s*|সময়\s*|সময়\s*)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.|টায়|টায়|টা|টার|tay|ty|ta|টার সময়|o'clock)\b/i)||clock.match(/(\d{1,2})(?::(\d{2}))?\s*(টায়|টায়|টা|টার)/)||clock.match(/\bat\s+(\d{1,2})(?::(\d{2}))?\b/);
- let hours=[],minute=null,timeLabel='';
- const evening=/\bpm\b|বিকাল|বিকেল|সন্ধ্যা|রাত|\b(bikal|bikel|evening|night|rat|afternoon)\b/.test(q),morning=/\bam\b|সকাল|\b(sokal|morning)\b/.test(q);
- if(time){let hour=Number(time[1]);minute=time[2]===undefined?null:Number(time[2]);if(hour>23||(minute!==null&&minute>59))return {error:'সঠিক সময় দিন, যেমন কাল সকাল 9:30 বা tomorrow 9 pm।'};
- const explicit=time[3]||'';if(/pm/i.test(explicit)||evening){if(hour>12)return {error:'PM-এর সময় 1–12 এর মধ্যে লিখুন।'};hours=[hour%12+12];}else if(/am/i.test(explicit)||morning){if(hour>12)return {error:'AM-এর সময় 1–12 এর মধ্যে লিখুন।'};hours=[hour%12];}else hours=hour>12||hour===0?[hour]:[hour%12,hour%12+12];
- timeLabel=hours.map(h=>formatTime(String(h).padStart(2,'0')+':'+String(minute??0).padStart(2,'0'))).join(' / ')+(minute===null?' ঘণ্টায়':'');
- }
- const area=/office|অফিস|\b(ofis|offic)\b/.test(q)?'Office':/family|পরিবার|ফ্যামিলি/.test(q)?'Family':/personal|ব্যক্তিগত|পার্সোনাল/.test(q)?'Personal':'';
- const completed=/completed|finished|done|সম্পন্ন|শেষ করেছি/.test(q),allStatuses=/all tasks|সব কাজ|সব task/.test(q);
- const high=/high priority|important|জরুরি|গুরুত্বপূর্ণ/.test(q);
- const next=/\bnext\b|পরের|পরবর্তী/.test(q);
- const waiting=/waiting|unscheduled|অপেক্ষা/.test(q);
- // Title/notes searches use quoted text or concrete subject words.
- const quoted=q.match(/["“](.+?)["”]/),keywords=quoted?[quoted[1]]:(q.match(/\b(meeting|report|proposal|invoice|budget|presentation|appointment|dentist|gym|project|finances)\b/g)||[]);
- return {q,from,to,dateLabel,hours,minute,timeLabel,area,completed,allStatuses,high,next,waiting,keywords,current:current.getTime()};
-}
-function lookupPlannerTasks(query,records=taskStore){
- if(query.error)return [];
- return records.filter(task=>{
- if(query.from&&(!task.date||task.date<query.from||task.date>query.to))return false;
- if(query.waiting&&task.day!=='waiting')return false;
- if(query.area&&task.area!==query.area)return false;
- if(!query.allStatuses&&Boolean(task.done)!==query.completed)return false;
- if(query.high&&task.priority!=='high')return false;
- const [hour,minute]=task.time.split(':').map(Number);
- if(query.hours.length&&(!query.hours.includes(hour)||(query.minute!==null&&minute!==query.minute)))return false;
- if(query.next&&(!task.date||new Date(task.date+'T'+task.time).getTime()<query.current))return false;
- const text=normalizePlannerQuestion(task.title+' '+getNoteHistory(task).map(n=>n.text).join(' '));
- return query.keywords.every(word=>text.includes(word));
- }).sort((a,b)=>((a.date||'9999')+a.time).localeCompare((b.date||'9999')+b.time));
-}
-async function answerPlannerQuestion(value){
- const query=parsePlannerQuestion(value),panel=document.querySelector('#plannerChat'),messages=document.querySelector('#plannerMessages');panel.hidden=false;messages.replaceChildren();
- const user=document.createElement('div');user.className='chat-question';user.textContent=value;messages.appendChild(user);
- const reply=document.createElement('div');reply.className='chat-answer';reply.textContent='Saved tasks খুঁজছি…';messages.appendChild(reply);messages.scrollTop=messages.scrollHeight;
- if(query.error){reply.textContent=query.error;return;}
- let tasks=lookupPlannerTasks(query);if(query.next)tasks=tasks.slice(0,1);
- const scope=[query.dateLabel,query.timeLabel,query.area].filter(Boolean).join(' · ');
- if(!tasks.length){reply.textContent=scope+' — কোনো matching saved task নেই। যেমন: “কাল সকাল 9টায় কী কাজ আছে”, “today office tasks”, বা “tomorrow 9:30 am” লিখতে পারেন।';return;}
- const shown=tasks.slice(0,20);reply.innerHTML='<p class="chat-summary">'+escapeHTML(scope)+' — '+tasks.length+'টি কাজ পাওয়া গেছে।'+(query.hours.length>1?' AM/PM বলেননি, তাই দুই সময়ই খোঁজা হয়েছে।':'')+'</p>';
- for(const task of shown){
- let files=[],fileError=false;try{files=await getAttachments(task.id);}catch{fileError=true;}
- const item=document.createElement('article');item.className='chat-task';
- const notes=getNoteHistory(task),latest=notes[notes.length-1];
- item.innerHTML='<button type="button" class="chat-task-open">'+escapeHTML(task.title)+'</button><p>'+escapeHTML(task.date||'Waiting list')+' · '+escapeHTML(formatTime(task.time))+' · '+escapeHTML(task.area)+' · '+(task.done?'Completed':task.priority==='high'?'High priority':'Open')+'</p>'+(latest?'<div class="chat-note">Latest note: '+escapeHTML(latest.text.slice(0,200)||'Files attached')+'</div>':'')+(files.length?'<div class="chat-files">Files: '+files.map(f=>escapeHTML(f.name)).join(', ')+'</div>':fileError?'<div class="chat-files">File storage unavailable; task details are shown above.</div>':'');
- item.querySelector('button').addEventListener('click',()=>{panel.hidden=true;messages.replaceChildren();openTaskDetails(task.id);});reply.appendChild(item);
- }
- if(tasks.length>shown.length){const more=document.createElement('p');more.textContent='প্রথম 20টি দেখানো হয়েছে। Date বা collection দিয়ে প্রশ্নটি আরও নির্দিষ্ট করুন।';reply.appendChild(more);}
- messages.scrollTop=messages.scrollHeight;
-}
-document.querySelector('#plannerAskForm').addEventListener('submit',async event=>{
- event.preventDefault();const input=document.querySelector('#plannerQuestion'),question=input.value.trim(),button=document.querySelector('#plannerAskButton');if(!question||button.disabled)return;
- button.disabled=true;input.value='';try{await answerPlannerQuestion(question);}catch{showToast('Could not search tasks. Please try again.');}finally{button.disabled=false;}
+form.addEventListener('submit',async event=>{event.preventDefault();const question=input.value.trim();if(!question||busy||voice)return;if(!connected){status.textContent='Continue with ChatGPT once, then send your message.';connect.focus();return;}busy=true;input.value='';status.textContent='';syncControls();try{await answerPlannerQuestion(question);}finally{busy=false;syncControls();input.focus();}});
+function finishVoice(session){if(voice!==session)return;clearTimeout(session.timer);session.stream?.getTracks().forEach(track=>track.stop());voice=null;syncControls();}
+function cancelVoice(){if(!voice)return;const session=voice;session.cancelled=true;session.controller.abort();input.value=session.original;finishVoice(session);if(session.recorder?.state==='recording')try{session.recorder.stop();}catch{}status.textContent='';}
+mic.addEventListener('click',async()=>{
+ if(busy)return;
+ if(voice){if(voice.transcribing){cancelVoice();status.textContent='Voice cancelled. You can type or record again.';}else if(voice.recorder?.state==='recording'){status.textContent='Converting speech to text…';voice.recorder.stop();}return;}
+ if(!window.MediaRecorder||!navigator.mediaDevices?.getUserMedia){status.textContent='Open Orbit in a browser at http://127.0.0.1:3000 to record audio.';return;}
+ const session={original:input.value,cancelled:false,chunks:[],controller:new AbortController(),language:language.value.startsWith('bn')?'bn':'en'};voice=session;syncControls();status.textContent='Allow microphone access if your browser asks…';
+ try{
+  session.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});
+  if(session.cancelled){session.stream.getTracks().forEach(track=>track.stop());return;}
+  const mime=['audio/webm;codecs=opus','audio/ogg;codecs=opus','audio/mp4'].find(type=>MediaRecorder.isTypeSupported(type));
+  session.recorder=mime?new MediaRecorder(session.stream,{mimeType:mime}):new MediaRecorder(session.stream);
+  const recorder=session.recorder;
+  recorder.ondataavailable=event=>{if(event.data.size)session.chunks.push(event.data);};
+  recorder.onerror=()=>{if(voice!==session)return;cancelVoice();status.textContent='Could not record audio. Tap the mic to try again.';};
+  recorder.onstop=async()=>{
+   clearTimeout(session.timer);session.stream.getTracks().forEach(track=>track.stop());
+   if(session.cancelled||voice!==session)return;
+   session.transcribing=true;status.textContent='Converting… Tap the mic to cancel.';
+   const elapsedStart=Date.now();const elapsedTimer=setInterval(()=>{if(voice===session)status.textContent='Converting… '+Math.floor((Date.now()-elapsedStart)/1000)+'s · Tap the mic to cancel.';},1000);
+   const timeout=setTimeout(()=>session.controller.abort(),70000);
+   try{
+    const audio=new Blob(session.chunks,{type:recorder.mimeType||'audio/webm'});
+    if(audio.size>5_000_000)throw Error('Recording too large. Try a shorter message.');
+    const r=await fetch('/api/voice',{method:'POST',headers:{'Content-Type':audio.type,'X-Voice-Language':session.language},body:audio,signal:session.controller.signal});
+    const result=await r.json().catch(()=>({error:'Voice server unavailable. Open Orbit at http://127.0.0.1:3000.'}));
+    if(!r.ok)throw Error(result.error||'Could not transcribe audio.');
+    if(session.cancelled||voice!==session)return;
+    input.value=[session.original.trim(),result.text?.trim()].filter(Boolean).join(' ').slice(0,4000);
+    status.textContent=result.text?.trim()?'Ready to send.':'No speech detected. Tap the mic and speak again.';
+   }catch(e){if(!session.cancelled)status.textContent=e.name==='AbortError'?'Transcription took too long. Try a shorter message.':e.message;}
+   finally{clearTimeout(timeout);clearInterval(elapsedTimer);finishVoice(session);if(!session.cancelled)input.focus();}
+  };
+  recorder.start();status.textContent='Recording… Tap the mic to finish. Maximum 30 seconds.';
+  session.timer=setTimeout(()=>{if(recorder.state==='recording')recorder.stop();},30000);
+ }catch(e){finishVoice(session);if(!session.cancelled)status.textContent=e.name==='NotAllowedError'?'Allow microphone access in browser site settings.':e.name==='NotFoundError'?'No microphone found. Check your device.':'Could not start recording. Check microphone access.';}
 });
-document.querySelector('#closePlannerChat').addEventListener('click',()=>{document.querySelector('#plannerChat').hidden=true;document.querySelector('#plannerMessages').replaceChildren();document.querySelector('#plannerQuestion').value='';});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!chat.hidden){if(voice)cancelVoice();else closeChat();}});window.addEventListener('pagehide',cancelVoice);
